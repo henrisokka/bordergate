@@ -26,17 +26,11 @@ type character struct {
 }
 
 func (c *character) nextSprite() {
-	fmt.Println("nextSprite")
-	fmt.Println("activeAnimation: ", c.activeAnimation)
-
-	fmt.Println(c.currentSprite+1 > len(c.sprites[c.activeAnimation])-1, len(c.sprites[c.activeAnimation]))
 	if c.currentSprite+1 > len(c.sprites[c.activeAnimation])-1 {
 		c.currentSprite = 0
 	} else {
 		c.currentSprite += 1
 	}
-
-	fmt.Println(c.currentSprite)
 }
 
 func init() {
@@ -55,7 +49,9 @@ func init() {
 }
 
 type Game struct {
-	hero character
+	hero           character
+	frameCount     int
+	terrainSprites map[string]*ebiten.Image
 }
 
 const MOVE_DELTA = 1
@@ -91,21 +87,42 @@ func (g *Game) Update() error {
 	return nil
 }
 
+func (g *Game) drawTerrain(screen *ebiten.Image) {
+
+	for y := 0; y*32 < screen.Bounds().Dy(); y += 1 {
+
+		for x := 0; x*32 < screen.Bounds().Dx(); x += 1 {
+			op := ebiten.DrawImageOptions{}
+			op.GeoM.Scale(float64(2), float64(2))
+
+			op.GeoM.Translate(float64(x*32), float64(y*32))
+			screen.DrawImage(g.terrainSprites["grass"], &op)
+		}
+	}
+
+	op := ebiten.DrawImageOptions{}
+	op.GeoM.Scale(float64(2), float64(2))
+	op.GeoM.Translate(float64(100), float64(200))
+	screen.DrawImage(g.terrainSprites["flowers"], &op)
+
+}
+
 func (g *Game) Draw(screen *ebiten.Image) {
+	g.drawTerrain(screen)
 
 	op := ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(2), float64(2))
 	op.GeoM.Translate(float64(g.hero.x), float64(g.hero.y))
 	animation := g.hero.activeAnimation
-	// if g.hero.actionCounter > 0 {
-	// 	op.GeoM.Translate(float64(-10), float64(0))
-	// 	currentSprite = 4
-	// }
 
-	g.hero.nextSprite()
-	fmt.Println("drawing now: ", animation, g.hero.currentSprite)
+	if g.frameCount%5 == 0 {
+		g.hero.nextSprite()
+	}
+
 	i := g.hero.sprites[animation][g.hero.currentSprite]
 	screen.DrawImage(i, &op)
+
+	g.frameCount += 1
 
 }
 
@@ -126,7 +143,7 @@ func main() {
 	spriteMap["idle"] = splitSprites(charSprites, 0, 0, 16, 32, 1)
 	spriteMap["hit"] = splitSprites(charSprites, 0, 128, 32, 32, 4)
 
-	if err := ebiten.RunGame(&Game{hero: character{sprites: spriteMap, activeAnimation: "idle"}}); err != nil {
+	if err := ebiten.RunGame(&Game{frameCount: 0, terrainSprites: createTerrainSprites(), hero: character{sprites: spriteMap, activeAnimation: "idle"}}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -141,7 +158,7 @@ func splitSprites(img *ebiten.Image, x int, y int, sizeX int, sizeY int, count i
 		fmt.Printf("Min: %v   ***", min)
 		fmt.Printf("Max: %v \n", max)
 		sprites = append(sprites,
-			charSprites.SubImage(
+			img.SubImage(
 				image.Rectangle{
 					Min: image.Point{X: min[0], Y: min[1]},
 					Max: image.Point{X: max[0], Y: max[1]}},
@@ -149,4 +166,25 @@ func splitSprites(img *ebiten.Image, x int, y int, sizeX int, sizeY int, count i
 	}
 
 	return sprites
+}
+
+func getSprite(img *ebiten.Image, min []int, max []int) *ebiten.Image {
+	i := img.SubImage(
+		image.Rectangle{Min: image.Point{X: min[0], Y: min[1]}, Max: image.Point{X: max[0], Y: max[1]}},
+	)
+
+	return i.(*ebiten.Image)
+}
+
+func createTerrainSprites() map[string]*ebiten.Image {
+	terrainSprites, _, err := ebitenutil.NewImageFromFile("assets/overworld.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	terrain := make(map[string]*ebiten.Image)
+	terrain["grass"] = getSprite(terrainSprites, []int{0, 0}, []int{16, 16})
+	terrain["flowers"] = getSprite(terrainSprites, []int{0, 128}, []int{16, 144})
+
+	return terrain
 }
