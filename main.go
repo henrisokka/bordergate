@@ -5,6 +5,8 @@ import (
 	"image"
 	_ "image/png"
 	"log"
+	"math/rand"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -33,6 +35,97 @@ func (c *character) nextSprite() {
 	}
 }
 
+type npc struct {
+	activeAnimation string
+	currentSprite   int
+	sprites         map[string][]*ebiten.Image
+
+	x int
+	y int
+
+	decisionCounter int
+	game            *Game
+}
+
+func (n *npc) init(game *Game) {
+	n.game = game
+	n.decisionCounter = 20
+
+	npcSprites, _, err := ebitenutil.NewImageFromFile("assets/npc.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sprites := make(map[string][]*ebiten.Image)
+	sprites["down"] = splitSprites(npcSprites, 0, 0, 16, 32, 4)
+	sprites["right"] = splitSprites(npcSprites, 0, 32, 16, 32, 4)
+	sprites["up"] = splitSprites(npcSprites, 0, 64, 16, 32, 4)
+	sprites["left"] = splitSprites(npcSprites, 0, 96, 16, 32, 4)
+	n.sprites = sprites
+
+	fmt.Println(sprites)
+}
+
+func (n *npc) update() {
+	if n.activeAnimation == "down" {
+		n.y += 1
+	}
+
+	if n.activeAnimation == "up" {
+		n.y -= 1
+	}
+
+	if n.activeAnimation == "right" {
+		n.x += 1
+	}
+
+	if n.activeAnimation == "left" {
+		n.x -= 1
+	}
+
+	if n.x < 0 {
+		n.decisionCounter = 120
+		n.activeAnimation = "right"
+	}
+
+	if n.y < 0 {
+		n.decisionCounter = 120
+		n.activeAnimation = "down"
+	}
+
+	if n.decisionCounter < 1 {
+		n.decisionCounter = 60
+
+		// TODO: Make decision here
+
+		rand.Seed(time.Now().UnixNano())
+
+		switch rand.Intn(4) {
+		case 0:
+			n.activeAnimation = "down"
+		case 1:
+			n.activeAnimation = "up"
+		case 2:
+			n.activeAnimation = "left"
+		case 3:
+			n.activeAnimation = "right"
+		}
+	}
+
+	n.decisionCounter -= 1
+}
+
+func (n *npc) nextSprite() {
+	fmt.Println("nextSprite", n.currentSprite+1 > len(n.sprites[n.activeAnimation])-1)
+	if n.currentSprite+1 > len(n.sprites[n.activeAnimation])-1 {
+		n.currentSprite = 0
+	} else {
+		n.currentSprite += 1
+	}
+
+	fmt.Println("npc sprite: ", n.currentSprite)
+}
+
 func init() {
 
 	var err error
@@ -52,6 +145,8 @@ type Game struct {
 	hero           character
 	frameCount     int
 	terrainSprites map[string]*ebiten.Image
+
+	npcList []*npc
 }
 
 const MOVE_DELTA = 1
@@ -73,6 +168,7 @@ func (g *Game) Update() error {
 		fmt.Println("action is triggered")
 		g.hero.actionCounter = 30
 		g.hero.activeAnimation = "hit"
+
 	} else if g.hero.actionCounter > 0 {
 		g.hero.actionCounter -= 1
 	} else {
@@ -82,6 +178,12 @@ func (g *Game) Update() error {
 
 	if g.hero.actionCounter > 0 {
 		g.hero.actionCounter -= 1
+	}
+
+	if len(g.npcList) == 0 {
+		g.spawnNPC()
+	} else {
+		g.npcList[0].update()
 	}
 
 	return nil
@@ -122,12 +224,30 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	i := g.hero.sprites[animation][g.hero.currentSprite]
 	screen.DrawImage(i, &op)
 
-	g.frameCount += 1
+	for _, npc := range g.npcList {
+		if g.frameCount%5 == 0 {
+			npc.nextSprite()
+		}
+		op := ebiten.DrawImageOptions{}
+		op.GeoM.Scale(float64(2), float64(2))
+		op.GeoM.Translate(float64(npc.x), float64(npc.y))
+		npmSprite := npc.sprites[npc.activeAnimation][npc.currentSprite]
+		screen.DrawImage(npmSprite, &op)
 
+	}
+
+	g.frameCount += 1
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return 640, 480
+}
+
+func (g *Game) spawnNPC() {
+	n := npc{activeAnimation: "down", currentSprite: 0}
+	n.init(g)
+
+	g.npcList = append(g.npcList, &n)
 }
 
 func main() {
