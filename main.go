@@ -2,129 +2,20 @@ package main
 
 import (
 	"fmt"
-	"image"
+	"image/color"
 	_ "image/png"
 	"log"
-	"math/rand"
-	"time"
 
+	"github.com/hajimehoshi/ebiten/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
 )
 
 var charSprites *ebiten.Image
-var actionImg *ebiten.Image
-
-type character struct {
-	x             float64
-	y             float64
-	actionCounter int
-
-	sprites         map[string][]*ebiten.Image
-	activeAnimation string
-
-	currentSprite int
-}
-
-func (c *character) nextSprite() {
-	if c.currentSprite+1 > len(c.sprites[c.activeAnimation])-1 {
-		c.currentSprite = 0
-	} else {
-		c.currentSprite += 1
-	}
-}
-
-type npc struct {
-	activeAnimation string
-	currentSprite   int
-	sprites         map[string][]*ebiten.Image
-
-	x int
-	y int
-
-	decisionCounter int
-	game            *Game
-}
-
-func (n *npc) init(game *Game) {
-	n.game = game
-	n.decisionCounter = 20
-
-	npcSprites, _, err := ebitenutil.NewImageFromFile("assets/npc.png")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	sprites := make(map[string][]*ebiten.Image)
-	sprites["down"] = splitSprites(npcSprites, 0, 0, 16, 32, 4)
-	sprites["right"] = splitSprites(npcSprites, 0, 32, 16, 32, 4)
-	sprites["up"] = splitSprites(npcSprites, 0, 64, 16, 32, 4)
-	sprites["left"] = splitSprites(npcSprites, 0, 96, 16, 32, 4)
-	n.sprites = sprites
-
-	fmt.Println(sprites)
-}
-
-func (n *npc) update() {
-	if n.activeAnimation == "down" {
-		n.y += 1
-	}
-
-	if n.activeAnimation == "up" {
-		n.y -= 1
-	}
-
-	if n.activeAnimation == "right" {
-		n.x += 1
-	}
-
-	if n.activeAnimation == "left" {
-		n.x -= 1
-	}
-
-	if n.x < 0 {
-		n.decisionCounter = 120
-		n.activeAnimation = "right"
-	}
-
-	if n.y < 0 {
-		n.decisionCounter = 120
-		n.activeAnimation = "down"
-	}
-
-	if n.decisionCounter < 1 {
-		n.decisionCounter = 60
-
-		// TODO: Make decision here
-
-		rand.Seed(time.Now().UnixNano())
-
-		switch rand.Intn(4) {
-		case 0:
-			n.activeAnimation = "down"
-		case 1:
-			n.activeAnimation = "up"
-		case 2:
-			n.activeAnimation = "left"
-		case 3:
-			n.activeAnimation = "right"
-		}
-	}
-
-	n.decisionCounter -= 1
-}
-
-func (n *npc) nextSprite() {
-	fmt.Println("nextSprite", n.currentSprite+1 > len(n.sprites[n.activeAnimation])-1)
-	if n.currentSprite+1 > len(n.sprites[n.activeAnimation])-1 {
-		n.currentSprite = 0
-	} else {
-		n.currentSprite += 1
-	}
-
-	fmt.Println("npc sprite: ", n.currentSprite)
-}
 
 func init() {
 
@@ -135,10 +26,6 @@ func init() {
 		log.Fatal(err)
 	}
 
-	actionImg, _, err = ebitenutil.NewImageFromFile("assets/gopher_action.png")
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 type Game struct {
@@ -146,13 +33,26 @@ type Game struct {
 	frameCount     int
 	terrainSprites map[string]*ebiten.Image
 
-	npcList []*npc
+	npcList         []*npc
+	callBackTrigger func(*Game)
+
+	showDialog bool
+	text       string
 }
 
 const MOVE_DELTA = 1
 
 func (g *Game) Update() error {
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		if g.callBackTrigger != nil {
+			g.callBackTrigger(g)
+			return nil
+		}
+
+		fmt.Println("action is triggered")
+		g.hero.actionCounter = 30
+		g.hero.activeAnimation = "hit"
+	} else if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		g.hero.activeAnimation = "left"
 		g.hero.x -= MOVE_DELTA
 	} else if ebiten.IsKeyPressed(ebiten.KeyRight) {
@@ -164,11 +64,6 @@ func (g *Game) Update() error {
 	} else if ebiten.IsKeyPressed(ebiten.KeyUp) {
 		g.hero.activeAnimation = "up"
 		g.hero.y -= MOVE_DELTA
-	} else if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		fmt.Println("action is triggered")
-		g.hero.actionCounter = 30
-		g.hero.activeAnimation = "hit"
-
 	} else if g.hero.actionCounter > 0 {
 		g.hero.actionCounter -= 1
 	} else {
@@ -237,6 +132,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	g.frameCount += 1
+	tt, _ := opentype.Parse(fonts.MPlus1pRegular_ttf)
+	mplusNormalFont, _ := opentype.NewFace(tt, &opentype.FaceOptions{
+		Size:    24,
+		DPI:     72,
+		Hinting: font.HintingFull,
+	})
+	if g.showDialog {
+		ebitenutil.DrawRect(screen, 0, float64(screen.Bounds().Dy())/4*3-50, float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())/4, color.White)
+		text.Draw(screen, "The Border Gate", mplusNormalFont, screen.Bounds().Dx()/3, screen.Bounds().Dy()/4*3, color.Black)
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -263,48 +168,13 @@ func main() {
 	spriteMap["idle"] = splitSprites(charSprites, 0, 0, 16, 32, 1)
 	spriteMap["hit"] = splitSprites(charSprites, 0, 128, 32, 32, 4)
 
-	if err := ebiten.RunGame(&Game{frameCount: 0, terrainSprites: createTerrainSprites(), hero: character{sprites: spriteMap, activeAnimation: "idle"}}); err != nil {
+	callback := func(game *Game) {
+		fmt.Println("you are now calling the action callback :)")
+		game.callBackTrigger = nil
+		game.showDialog = false
+	}
+
+	if err := ebiten.RunGame(&Game{showDialog: true, frameCount: 0, terrainSprites: createTerrainSprites(), callBackTrigger: callback, hero: character{sprites: spriteMap, activeAnimation: "idle"}}); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func splitSprites(img *ebiten.Image, x int, y int, sizeX int, sizeY int, count int) []*ebiten.Image {
-	sprites := []*ebiten.Image{}
-	fmt.Printf("splitSprites: x=%v, y=%v, size=%v, count=%v\n", x, y, sizeX, count)
-
-	for i := 0; i < count; i++ {
-		min := []int{x + (i * sizeX), y}
-		max := []int{x + (i+1)*sizeX, y + sizeY}
-		fmt.Printf("Min: %v   ***", min)
-		fmt.Printf("Max: %v \n", max)
-		sprites = append(sprites,
-			img.SubImage(
-				image.Rectangle{
-					Min: image.Point{X: min[0], Y: min[1]},
-					Max: image.Point{X: max[0], Y: max[1]}},
-			).(*ebiten.Image))
-	}
-
-	return sprites
-}
-
-func getSprite(img *ebiten.Image, min []int, max []int) *ebiten.Image {
-	i := img.SubImage(
-		image.Rectangle{Min: image.Point{X: min[0], Y: min[1]}, Max: image.Point{X: max[0], Y: max[1]}},
-	)
-
-	return i.(*ebiten.Image)
-}
-
-func createTerrainSprites() map[string]*ebiten.Image {
-	terrainSprites, _, err := ebitenutil.NewImageFromFile("assets/overworld.png")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	terrain := make(map[string]*ebiten.Image)
-	terrain["grass"] = getSprite(terrainSprites, []int{0, 0}, []int{16, 16})
-	terrain["flowers"] = getSprite(terrainSprites, []int{0, 128}, []int{16, 144})
-
-	return terrain
 }
