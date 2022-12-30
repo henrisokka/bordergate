@@ -1,0 +1,13 @@
+{
+    "opening": [
+        {
+            "text": "Welcome to the Border Gate. It's a game about sauna. Press space to continue.",
+            "sayer": "tutorial"
+            
+        },
+        {
+            "text": "Use arrow keys to move around. And space to interact with the world.",
+            "sayer": "tutorial"
+        }
+    ]
+}

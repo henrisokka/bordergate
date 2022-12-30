@@ -5,6 +5,7 @@ import (
 	"image/color"
 	_ "image/png"
 	"log"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -33,20 +34,26 @@ type Game struct {
 	frameCount     int
 	terrainSprites map[string]*ebiten.Image
 
-	npcList         []*npc
-	callBackTrigger func(*Game)
+	npcList []*npc
 
-	showDialog bool
-	text       string
+	dialogs       map[string][]dialog
+	dialogChain   []dialog
+	currentDialog int
 }
 
 const MOVE_DELTA = 1
 
 func (g *Game) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		if g.callBackTrigger != nil {
-			g.callBackTrigger(g)
-			return nil
+		if g.dialogChain != nil {
+			if g.currentDialog+2 > len(g.dialogChain) {
+				g.dialogChain = nil
+				g.currentDialog = 0
+				return nil
+			} else {
+				g.currentDialog += 1
+				return nil
+			}
 		}
 
 		fmt.Println("action is triggered")
@@ -138,9 +145,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		DPI:     72,
 		Hinting: font.HintingFull,
 	})
-	if g.showDialog {
-		ebitenutil.DrawRect(screen, 0, float64(screen.Bounds().Dy())/4*3-50, float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())/4, color.White)
-		text.Draw(screen, "The Border Gate", mplusNormalFont, screen.Bounds().Dx()/3, screen.Bounds().Dy()/4*3, color.Black)
+	if g.dialogChain != nil {
+		d := (g.dialogChain)[g.currentDialog]
+		ebitenutil.DrawRect(screen, 0, float64(screen.Bounds().Dy()/5*4), float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy()/5*2), color.White)
+		text.Draw(screen, d.Text, mplusNormalFont, 50, screen.Bounds().Dy()/5*4, color.Black)
 	}
 }
 
@@ -168,13 +176,20 @@ func main() {
 	spriteMap["idle"] = splitSprites(charSprites, 0, 0, 16, 32, 1)
 	spriteMap["hit"] = splitSprites(charSprites, 0, 128, 32, 32, 4)
 
-	callback := func(game *Game) {
-		fmt.Println("you are now calling the action callback :)")
-		game.callBackTrigger = nil
-		game.showDialog = false
+	data, err := os.ReadFile("dialogs/start_scene.json")
+	if err != nil {
+		panic(err)
 	}
+	dialogs := loadDialogs(data)
 
-	if err := ebiten.RunGame(&Game{showDialog: true, frameCount: 0, terrainSprites: createTerrainSprites(), callBackTrigger: callback, hero: character{sprites: spriteMap, activeAnimation: "idle"}}); err != nil {
+	if err := ebiten.RunGame(
+		&Game{
+			frameCount:     0,
+			terrainSprites: createTerrainSprites(),
+			dialogChain:    dialogs["opening"],
+			hero:           character{sprites: spriteMap, activeAnimation: "idle"},
+			dialogs:        dialogs,
+		}); err != nil {
 		log.Fatal(err)
 	}
 }
