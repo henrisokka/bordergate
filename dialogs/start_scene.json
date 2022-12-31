@@ -9,5 +9,15 @@
             "text": "Use arrow keys to move around. And space to interact with the world.",
             "sayer": "tutorial"
         }
+    ],
+    "flower_look": [
+        {
+            "text": "They are such beautiful flowers. But I'd rather burn 'em in my kiuas.",
+            "sayer": "player"
+        },
+        {
+            "text": "Where is my kiuas...",
+            "sayer": "player"
+        }
     ]
 }

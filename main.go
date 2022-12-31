@@ -64,7 +64,7 @@ type Game struct {
 func (g *Game) init() {
 	op := ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(2), float64(2))
-	g.createObject(g.terrainSprites["flowers"], coord{100, 100}, coord{-16, -16})
+	g.createObject(g.terrainSprites["flowers"], coord{100, 100}, coord{-16, -16}, dialogHandlerFactory("flower_look"))
 	g.initialized = true
 }
 
@@ -214,19 +214,20 @@ func (g *Game) spawnNPC() {
 }
 
 func (g *Game) checkCollisions() *object {
-	fmt.Println("Check collisions")
 	for _, object := range g.objects {
 		touch := doesTouch(g.hero.direction, g.hero.coord, object.coord)
-		fmt.Println("touches? ", touch)
 		if touch {
+			if object.handler != nil {
+				object.handler(g)
+			}
 			return object
 		}
 	}
 	return nil
 }
 
-func (g *Game) createObject(sprite *ebiten.Image, coord coord, spriteOffset coord) {
-	obj := object{coord: coord, spriteOffset: spriteOffset, sprite: sprite}
+func (g *Game) createObject(sprite *ebiten.Image, coord coord, spriteOffset coord, handler func(*Game)) {
+	obj := object{coord: coord, spriteOffset: spriteOffset, sprite: sprite, handler: handler}
 	g.objects = append(g.objects, &obj)
 }
 

@@ -8,3 +8,9 @@ type object struct {
 	sprite       *ebiten.Image
 	handler      func(*Game)
 }
+
+func dialogHandlerFactory(dialogID string) func(*Game) {
+	return func(g *Game) {
+		g.dialogChain = g.dialogs[dialogID]
+	}
+}
