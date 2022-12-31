@@ -15,9 +15,8 @@ type npc struct {
 	currentSprite   int
 	sprites         map[string][]*ebiten.Image
 
-	coord coord
-	x     int
-	y     int
+	coord        coord
+	spriteOffset coord
 
 	decisionCounter int
 	game            *Game
@@ -96,4 +95,8 @@ func (n *npc) nextSprite() {
 	} else {
 		n.currentSprite += 1
 	}
+}
+
+func (n *npc) hit() {
+	n.game.npcList = make([]*npc, 0)
 }

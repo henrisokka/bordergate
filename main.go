@@ -64,6 +64,7 @@ type Game struct {
 func (g *Game) init() {
 	op := ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(2), float64(2))
+	g.spawnNPC()
 	g.createObject(g.terrainSprites["flowers"], coord{100, 100}, coord{-16, -16}, dialogHandlerFactory("flower_look"))
 	g.initialized = true
 }
@@ -86,9 +87,15 @@ func (g *Game) Update() error {
 		}
 		g.hero.hitting = true
 		fmt.Println("action is triggered")
-		g.checkCollisions()
-		g.hero.actionCounter = 30
-		g.hero.activeAnimation = hitAnimationMap[g.hero.direction]
+		if !g.checkObjectCollisions() {
+			g.hero.actionCounter = 30
+			g.hero.activeAnimation = hitAnimationMap[g.hero.direction]
+
+			if g.checkNPCCollisions() {
+				fmt.Println("yes yes yes")
+
+			}
+		}
 	} else if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		g.hero.walking = true
 		g.hero.activeAnimation = "left"
@@ -120,10 +127,7 @@ func (g *Game) Update() error {
 	if g.hero.actionCounter > 0 {
 		g.hero.actionCounter -= 1
 	}
-
-	if len(g.npcList) == 0 {
-		g.spawnNPC()
-	} else {
+	if len(g.npcList) > 0 {
 		g.npcList[0].update()
 	}
 
@@ -165,7 +169,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 		op := ebiten.DrawImageOptions{}
 		op.GeoM.Scale(float64(2), float64(2))
-		op.GeoM.Translate(float64(npc.coord.x), float64(npc.coord.y))
+		op.GeoM.Translate(float64(npc.coord.x+npc.spriteOffset.x), float64(npc.coord.y+npc.spriteOffset.y))
 		npmSprite := npc.sprites[npc.activeAnimation][npc.currentSprite]
 		screen.DrawImage(npmSprite, &op)
 	}
@@ -198,6 +202,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		for _, dp := range g.objects {
 			ebitenutil.DrawCircle(screen, float64(dp.coord.x), float64(dp.coord.y), 5, color.Black)
 		}
+
+		for _, dp := range g.npcList {
+			ebitenutil.DrawCircle(screen, float64(dp.coord.x), float64(dp.coord.y), 5, color.Black)
+		}
+
 		ebitenutil.DrawCircle(screen, float64(g.hero.coord.x), float64(g.hero.coord.y), 5, color.Black)
 	}
 }
@@ -207,23 +216,34 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func (g *Game) spawnNPC() {
-	n := npc{activeAnimation: "down", currentSprite: 0}
+	n := npc{activeAnimation: "down", currentSprite: 0, spriteOffset: coord{x: -16, y: -32}}
 	n.init(g)
 
 	g.npcList = append(g.npcList, &n)
 }
 
-func (g *Game) checkCollisions() *object {
+func (g *Game) checkObjectCollisions() bool {
 	for _, object := range g.objects {
 		touch := doesTouch(g.hero.direction, g.hero.coord, object.coord)
 		if touch {
 			if object.handler != nil {
 				object.handler(g)
 			}
-			return object
+			return true
 		}
 	}
-	return nil
+	return false
+}
+
+func (g *Game) checkNPCCollisions() bool {
+	for _, npc := range g.npcList {
+		touch := doesTouch(g.hero.direction, g.hero.coord, npc.coord)
+		if touch {
+			npc.hit()
+			return true
+		}
+	}
+	return false
 }
 
 func (g *Game) createObject(sprite *ebiten.Image, coord coord, spriteOffset coord, handler func(*Game)) {
