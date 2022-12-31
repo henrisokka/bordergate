@@ -15,8 +15,9 @@ type npc struct {
 	currentSprite   int
 	sprites         map[string][]*ebiten.Image
 
-	x int
-	y int
+	coord coord
+	x     int
+	y     int
 
 	decisionCounter int
 	game            *Game
@@ -42,27 +43,27 @@ func (n *npc) init(game *Game) {
 }
 func (n *npc) update() {
 	if n.activeAnimation == "down" {
-		n.y += 1
+		n.coord.y += 1
 	}
 
 	if n.activeAnimation == "up" {
-		n.y -= 1
+		n.coord.y -= 1
 	}
 
 	if n.activeAnimation == "right" {
-		n.x += 1
+		n.coord.x += 1
 	}
 
 	if n.activeAnimation == "left" {
-		n.x -= 1
+		n.coord.x -= 1
 	}
 
-	if n.x < 0 {
+	if n.coord.x < 0 {
 		n.decisionCounter = 120
 		n.activeAnimation = "right"
 	}
 
-	if n.y < 0 {
+	if n.coord.y < 0 {
 		n.decisionCounter = 120
 		n.activeAnimation = "down"
 	}
