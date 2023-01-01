@@ -68,6 +68,7 @@ func (g *Game) init() {
 	g.spawnNPC()
 
 	g.createObject(g.terrainSprites["flowers"], coord{100, 100}, coord{-16, -16}, dialogHandlerFactory("flower_look"))
+	g.createObject(g.terrainSprites["log"], coord{30, 50}, coord{-16, -16}, dialogHandlerFactory("log"))
 	g.initialized = true
 }
 
@@ -167,6 +168,15 @@ func (g *Game) drawHero(screen *ebiten.Image) {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	g.drawTerrain(screen)
+	for _, obj := range g.objects {
+		x := obj.coord.x + obj.spriteOffset.x
+		y := obj.coord.y + obj.spriteOffset.y
+		op := ebiten.DrawImageOptions{}
+		op.GeoM.Scale(float64(2), float64(2))
+		op.GeoM.Translate(float64(x), float64(y))
+
+		screen.DrawImage(obj.sprite, &op)
+	}
 
 	heroDrawn := false
 	for _, npc := range sortNPCs(g.npcList) {
@@ -192,16 +202,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	if !heroDrawn {
 		g.drawHero(screen)
-	}
-
-	for _, obj := range g.objects {
-		x := obj.coord.x + obj.spriteOffset.x
-		y := obj.coord.y + obj.spriteOffset.y
-		op := ebiten.DrawImageOptions{}
-		op.GeoM.Scale(float64(2), float64(2))
-		op.GeoM.Translate(float64(x), float64(y))
-
-		screen.DrawImage(obj.sprite, &op)
 	}
 
 	g.frameCount += 1

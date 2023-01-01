@@ -25,9 +25,9 @@ func splitSprites(img *ebiten.Image, x int, y int, sizeX int, sizeY int, count i
 	return sprites
 }
 
-func getSprite(img *ebiten.Image, min []int, max []int) *ebiten.Image {
+func getSprite(img *ebiten.Image, min coord, max coord) *ebiten.Image {
 	i := img.SubImage(
-		image.Rectangle{Min: image.Point{X: min[0], Y: min[1]}, Max: image.Point{X: max[0], Y: max[1]}},
+		image.Rectangle{Min: image.Point{X: min.x, Y: min.y}, Max: image.Point{X: max.x, Y: max.y}},
 	)
 
 	return i.(*ebiten.Image)
@@ -40,8 +40,9 @@ func createTerrainSprites() map[string]*ebiten.Image {
 	}
 
 	terrain := make(map[string]*ebiten.Image)
-	terrain["grass"] = getSprite(terrainSprites, []int{0, 0}, []int{16, 16})
-	terrain["flowers"] = getSprite(terrainSprites, []int{0, 128}, []int{16, 144})
+	terrain["grass"] = getSprite(terrainSprites, coord{0, 0}, coord{16, 16})
+	terrain["flowers"] = getSprite(terrainSprites, coord{0, 128}, coord{16, 144})
+	terrain["log"] = getSprite(terrainSprites, coord{48, 80}, coord{96, 96})
 
 	return terrain
 }

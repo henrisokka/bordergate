@@ -19,5 +19,11 @@
             "text": "Where is my kiuas...",
             "sayer": "player"
         }
+    ],
+    "log": [
+        {
+            "text": "Wish I had a axe instead of this vihta. I could chop some wood to heat my sauna.",
+            "sayer": "player"
+        }
     ]
 }
