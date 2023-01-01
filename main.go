@@ -24,6 +24,7 @@ type coord struct {
 }
 
 const MOVE_DELTA = 1
+const DEBUG = false
 
 var hitAnimationMap = map[string]string{
 	"right": "hitRight",
@@ -65,6 +66,7 @@ func (g *Game) init() {
 	op := ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(2), float64(2))
 	g.spawnNPC()
+
 	g.createObject(g.terrainSprites["flowers"], coord{100, 100}, coord{-16, -16}, dialogHandlerFactory("flower_look"))
 	g.initialized = true
 }
@@ -127,8 +129,9 @@ func (g *Game) Update() error {
 	if g.hero.actionCounter > 0 {
 		g.hero.actionCounter -= 1
 	}
-	if len(g.npcList) > 0 {
-		g.npcList[0].update()
+
+	for _, npc := range g.npcList {
+		npc.update()
 	}
 
 	return nil
@@ -148,9 +151,7 @@ func (g *Game) drawTerrain(screen *ebiten.Image) {
 
 }
 
-func (g *Game) Draw(screen *ebiten.Image) {
-	g.drawTerrain(screen)
-
+func (g *Game) drawHero(screen *ebiten.Image) {
 	op := ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(2), float64(2))
 	op.GeoM.Translate(float64(g.hero.coord.x+g.hero.spriteOffset.x), float64(g.hero.coord.y+g.hero.spriteOffset.y))
@@ -162,16 +163,35 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	i := g.hero.sprites[animation][g.hero.currentSprite]
 	screen.DrawImage(i, &op)
+}
 
-	for _, npc := range g.npcList {
+func (g *Game) Draw(screen *ebiten.Image) {
+	g.drawTerrain(screen)
+
+	heroDrawn := false
+	for _, npc := range sortNPCs(g.npcList) {
 		if g.frameCount%5 == 0 {
 			npc.nextSprite()
 		}
 		op := ebiten.DrawImageOptions{}
 		op.GeoM.Scale(float64(2), float64(2))
-		op.GeoM.Translate(float64(npc.coord.x+npc.spriteOffset.x), float64(npc.coord.y+npc.spriteOffset.y))
+
+		x := npc.coord.x + npc.spriteOffset.x
+		y := npc.coord.y + npc.spriteOffset.y
+
+		if y > g.hero.coord.y+g.hero.spriteOffset.y {
+			if heroDrawn == false {
+				g.drawHero(screen)
+				heroDrawn = true
+			}
+		}
+		op.GeoM.Translate(float64(x), float64(y))
 		npmSprite := npc.sprites[npc.activeAnimation][npc.currentSprite]
 		screen.DrawImage(npmSprite, &op)
+	}
+
+	if !heroDrawn {
+		g.drawHero(screen)
 	}
 
 	for _, obj := range g.objects {
@@ -197,7 +217,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		ebitenutil.DrawRect(screen, 0, float64(screen.Bounds().Dy()/5*4), float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy()/5*2), color.White)
 		text.Draw(screen, d.Text, mplusNormalFont, 50, screen.Bounds().Dy()/5*4, color.Black)
 	}
-
 	if g.debug {
 		for _, dp := range g.objects {
 			ebitenutil.DrawCircle(screen, float64(dp.coord.x), float64(dp.coord.y), 5, color.Black)
@@ -283,7 +302,7 @@ func main() {
 				sprites: spriteMap, activeAnimation: "idle", direction: "down", spriteOffset: coord{x: -16, y: -32},
 			},
 			dialogs: dialogs,
-			debug:   true,
+			debug:   DEBUG,
 		}); err != nil {
 		log.Fatal(err)
 	}

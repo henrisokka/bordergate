@@ -1,17 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"sort"
+)
 
 const OFFSET = 20
-const DISTANCE = 30
+const DISTANCE = 40
 
 func doesTouch(direction string, source coord, target coord) bool {
-	fmt.Println("Does Touch?")
 	xDiff := source.x - target.x
 	yDiff := source.y - target.y
-	fmt.Println("X:", xDiff)
-	fmt.Println("Y:", yDiff)
-
 	switch direction {
 	case "down":
 		return xDiff < OFFSET && xDiff > -(OFFSET) &&
@@ -27,4 +25,12 @@ func doesTouch(direction string, source coord, target coord) bool {
 			yDiff < OFFSET && yDiff > -(OFFSET)
 	}
 	return false
+}
+
+func sortNPCs(list []*npc) []*npc {
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].coord.y+list[i].spriteOffset.y < list[j].coord.y+list[j].spriteOffset.y
+	})
+
+	return list
 }
